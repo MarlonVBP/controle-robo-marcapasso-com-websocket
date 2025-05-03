@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Controle de Motores</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background-color: #f0f4f8;
+        color: #333;
+        text-align: center;
+        padding: 20px;
+      }
+
+      h1 {
+        color: #444;
+      }
+
+      h3 {
+        margin: 10px 0;
+      }
+
+      button {
+        padding: 10px 20px;
+        margin: 8px;
+        border: none;
+        border-radius: 8px;
+        background-color: #3390c9;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        transition: background-color 0.3s, transform 0.2s;
+      }
+
+      button:hover {
+        background-color: #2b7bb0;
+        transform: scale(1.05);
+      }
+
+      .joystick {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 30px auto;
+      }
+
+      .joystick button {
+        width: 60px;
+        height: 60px;
+        margin: 5px;
+        font-size: 24px;
+        font-weight: bold;
+        background-color: #3390c9;
+        border-radius: 50%;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .joystick button:hover {
+        background-color: #2b7bb0;
+        transform: scale(1.1);
+      }
+
+      .middle-row {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .section-title {
+        margin-top: 30px;
+        font-size: 20px;
+        font-weight: 600;
+        color: #555;
+      }
+
+      #status1,
+      #status2 {
+        font-size: 16px;
+        font-weight: bold;
+        margin-top: 10px;
+      }
+
+      .status-on {
+        color: green;
+      }
+
+      .status-off {
+        color: red;
+      }
+
+      #rotations1,
+      #rotations2 {
+        font-size: 15px;
+      }
+
+      .emergencia-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .sirene {
+        display: none;
+        width: 50px;
+        height: 50px;
+        background-color: gray;
+        border-radius: 50%;
+        transition: background-color 0.3s;
+      }
+
+      .sirene.ativa {
+        display: inline-block;
+        background-color: red;
+        animation: pulsar 1s infinite;
+      }
+
+      @keyframes pulsar {
+        0% {
+          box-shadow: 0 0 0px red;
+        }
+        50% {
+          box-shadow: 0 0 15px red;
+          transform: scale(1.1);
+        }
+        100% {
+          box-shadow: 0 0 0px red;
+          transform: scale(1);
+        }
+      }
+    </style>
+
+    <script>
+      var ws = new WebSocket("ws://localhost:8080");
+
+      ws.onmessage = function (event) {
+        var data = JSON.parse(event.data);
+
+        const status1 =
+          data.status1 === "Ligado"
+            ? `<span class="status-on">🟢 Motor 1 - Status: ${data.status1}</span>`
+            : `<span class="status-off">🔴 Motor 1 - Status: ${data.status1}</span>`;
+
+        const status2 =
+          data.status2 === "Ligado"
+            ? `<span class="status-on">🟢 Motor 2 - Status: ${data.status2}</span>`
+            : `<span class="status-off">🔴 Motor 2 - Status: ${data.status2}</span>`;
+
+        document.getElementById("status1").innerHTML = status1;
+        document.getElementById("rotations1").innerText =
+          "Motor 1 - Rotações: " + data.rotations1;
+        document.getElementById("status2").innerHTML = status2;
+        document.getElementById("rotations2").innerText =
+          "Motor 2 - Rotações: " + data.rotations2;
+      };
+
+      function enviarComando(comando) {
+        var prioridade = document.getElementById("emergencia").checked ? 1 : 0;
+        if (ws.readyState === WebSocket.OPEN) {
+          const mensagem = JSON.stringify({
+            comando: comando,
+            prioridade: prioridade,
+          });
+          console.log("Enviando comando: " + mensagem);
+          ws.send(mensagem);
+        } else {
+          alert("WebSocket não conectado.");
+        }
+      }
+
+      function pararMotores() {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ comando: "parar", prioridade: 0 }));
+        }
+      }
+
+      function toggleEmergencia() {
+        const check = document.getElementById("emergencia");
+        const sirene = document.getElementById("sireneIcon");
+        const label = document.getElementById("labelEmergencia");
+
+        const ativado = check.checked;
+        sirene.classList.toggle("ativa", ativado);
+        label.innerText = ativado ? "Desativar" : "Ativar";
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Controle de Motores de Passo</h1>
+
+    <h3 id="status1">Motor 1 - Status: Desligado</h3>
+    <h3 id="rotations1">Motor 1 - Rotações: 0</h3>
+    <h3 id="status2">Motor 2 - Status: Desligado</h3>
+    <h3 id="rotations2">Motor 2 - Rotações: 0</h3>
+
+    <div class="section-title">Controles Individuais</div>
+    <button onclick="enviarComando('motor1_horario')">Motor 1 Horário</button>
+    <button onclick="enviarComando('motor1_antihorario')">
+      Motor 1 Anti-Horário
+    </button>
+    <br />
+    <button onclick="enviarComando('motor2_horario')">Motor 2 Horário</button>
+    <button onclick="enviarComando('motor2_antihorario')">
+      Motor 2 Anti-Horário
+    </button>
+
+    <div class="section-title">Movimentos do Robô (Joystick)</div>
+    <div class="joystick">
+      <button onclick="enviarComando('frente')">↑</button>
+      <div class="middle-row">
+        <button onclick="enviarComando('esquerda')">←</button>
+        <button onclick="enviarComando('parar')">⏹</button>
+        <button onclick="enviarComando('direita')">→</button>
+      </div>
+      <button onclick="enviarComando('re')">↓</button>
+    </div>
+
+    <div class="section-title">Parar</div>
+    <button onclick="pararMotores()">Parar Ambos os Motores</button>
+
+    <div class="section-title">Emergência</div>
+    <div class="emergencia-container">
+      <label>
+        <input type="checkbox" id="emergencia" onchange="toggleEmergencia()" />
+        <span id="labelEmergencia">Ativar</span>
+      </label>
+      <div id="sireneIcon" class="sirene" title="Modo Emergência"></div>
+    </div>
+  </body>
+</html>
